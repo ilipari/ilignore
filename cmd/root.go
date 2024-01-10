@@ -57,7 +57,7 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ilignore.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ilignorerc.yaml)")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
@@ -74,16 +74,30 @@ func initConfig() {
 		home, err := os.UserHomeDir()
 		cobra.CheckErr(err)
 
-		// Search config in home directory with name ".ilignore" (without extension).
+		// look for config in the working directory
+		viper.AddConfigPath(".")
+
+		// optionally look for config in home directory
 		viper.AddConfigPath(home)
+
+		// with name ".ilignorerc" (with or without extension).
 		viper.SetConfigType("yaml")
-		viper.SetConfigName(".ilignore")
+		viper.SetConfigName(".ilignorerc")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
 
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			// Config file not found; ignore error
+			fmt.Fprintln(os.Stderr, "Config file not found")
+		} else {
+			// Config file was found but another error was produced
+			fmt.Fprintln(os.Stderr, "Error Using config file:", err)
+			os.Exit(1)
+		}
+	} else {
+		// Config file found and successfully parsed
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	}
 }
