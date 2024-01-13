@@ -18,24 +18,36 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+
+	"ilipari/ilignore/service"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // checkCmd represents the check command
 var checkCmd = &cobra.Command{
 	Use:   "check",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
+	Short: "Checks which files conflicts with an ignore file",
+	Long: `Analyzes a list of files looking for conflicts with an ignore file in .gitignore format. 
+The list of files to check can be obtained through the execution of a shell command or via stdin.
+A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("check called")
+		fmt.Fprintf(os.Stderr, "check command called\n")
+		var s = service.NewService(
+			viper.GetString(configKey(cmd, LIST_FILES_FLAG)),
+			viper.GetString(configKey(cmd, IGNORE_FILE_FLAG)))
+		s.CheckFiles()
 	},
 }
+
+const LIST_FILES_FLAG, IGNORE_FILE_FLAG = "files", "ignore"
 
 func init() {
 	rootCmd.AddCommand(checkCmd)
@@ -49,4 +61,18 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// checkCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	checkCmd.Flags().StringP(LIST_FILES_FLAG, "f", service.GIT_COMMIT_FILES_COMMAND, "command to obtain list of files to check")
+	viper.BindPFlag(configKey(checkCmd, LIST_FILES_FLAG), checkCmd.Flags().Lookup(LIST_FILES_FLAG))
+
+	checkCmd.Flags().StringP(IGNORE_FILE_FLAG, "i", service.IGNORE_FILE, "Ignore file")
+	viper.BindPFlag(configKey(checkCmd, IGNORE_FILE_FLAG), checkCmd.Flags().Lookup(IGNORE_FILE_FLAG))
+
+}
+
+func configKey(cmd *cobra.Command, flag string) string {
+	if cmd.HasParent() {
+		return configKey(cmd.Parent(), "") + cmd.Name() + "." + flag
+	}
+	return ""
 }
