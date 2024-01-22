@@ -43,7 +43,8 @@ to quickly create a Cobra application.`,
 		var s = service.NewService(
 			viper.GetString(configKey(cmd, LIST_FILES_FLAG)),
 			viper.GetString(configKey(cmd, IGNORE_FILE_FLAG)))
-		s.CheckFiles()
+		conflicts := s.CheckFiles()
+		fmt.Fprintf(os.Stdout, "conflicts: %v\n", conflicts)
 	},
 }
 
