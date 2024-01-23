@@ -9,7 +9,7 @@ const GIT_COMMIT_FILES_COMMAND = "git diff --cached --name-only --diff-filter=AC
 const IGNORE_FILE = ".ilignore"
 
 func NewService(listFilesCommand, ignoreFile string) *IgnoreService {
-	fileChecker := NewFileChecker(ignoreFile)
+	fileChecker := NewFileChecker(ignoreFile, false)
 	return &IgnoreService{
 		listFilesCommand: listFilesCommand,
 		fileChecker:      fileChecker,
