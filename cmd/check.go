@@ -41,8 +41,8 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "check command called\n")
 		var s = service.NewService(viper.GetString(configKey(cmd, IGNORE_FILE_FLAG)))
-		// NewFileSourceFromCommand(viper.GetString(configKey(cmd, LIST_FILES_FLAG)))
-		filesCh := service.NewFixedFileSource([]string{"ciao.txt", "mondo.csv", ".vscode"})
+		filesCh := service.NewFileSourceFromCommand(viper.GetString(configKey(cmd, LIST_FILES_FLAG)))
+		// filesCh := service.NewFixedFileSource([]string{"ciao.txt", "mondo.csv", ".vscode"})
 		conflicts := s.CheckFiles(filesCh)
 		fmt.Fprintf(os.Stdout, "conflicts: %v\n", conflicts)
 	},
