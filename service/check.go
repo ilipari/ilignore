@@ -60,12 +60,16 @@ func NewDenormalFileChecker(file string, errorHandler func(e gitignore.Error) bo
 
 	// otherwise, we ignore the parser errors on .gitignore file
 	init = false
-	return &DenormalFileChecker{ignore}, nil
+	return &DenormalFileChecker{ignore, file}, nil
 } // NewDenormalFileChecker()
 
 type DenormalFileChecker struct {
-	// ignore file with .gitignore syntax (default .ilignore)
+	// represents an ignore file with .gitignore syntax (default .ilignore)
 	ignore gitignore.GitIgnore
+	// store the .gitignore file name
+	//		- we do this here since the returned match Positions don't include this info and
+	// 		GitIgnore interface doesn't give access to it -> CONTRIBUTE
+	ignoreFile string
 }
 
 func (s *DenormalFileChecker) checkFile(file string) (*Conflict, error) {
@@ -76,7 +80,7 @@ func (s *DenormalFileChecker) checkFile(file string) (*Conflict, error) {
 		if match.Ignore() {
 			conflict = NewConflict()
 			conflict.File = file
-			conflict.IgnoreFile = match.Position().File
+			conflict.IgnoreFile = s.ignoreFile
 			conflict.Line = match.Position().Line
 			conflict.Pattern = match.String()
 		} else if match.Include() {
