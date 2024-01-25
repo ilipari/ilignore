@@ -43,8 +43,8 @@ to quickly create a Cobra application.`,
 		var s = service.NewService(viper.GetString(configKey(cmd, IGNORE_FILE_FLAG)))
 		filesCh := service.NewFileSourceFromCommand(viper.GetString(configKey(cmd, LIST_FILES_FLAG)))
 		// filesCh := service.NewFixedFileSource([]string{"ciao.txt", "mondo.csv", ".vscode"})
-		conflicts := s.CheckFiles(filesCh)
-		fmt.Fprintf(os.Stdout, "conflicts: %v\n", conflicts)
+		conflictsConsumer := service.NewConsoleConflictConsumer("")
+		s.CheckFiles(filesCh, conflictsConsumer)
 	},
 }
 

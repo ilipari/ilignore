@@ -23,45 +23,46 @@ type IgnoreService struct {
 }
 
 // Channel to obtain list of files to be checked against ignore file
-func (s IgnoreService) CheckFiles(filesChannel chan string) []Conflict {
+func (s IgnoreService) CheckFiles(filesChannel chan string, conflictConsumer ConflictConsumer) {
 	fmt.Fprintf(os.Stderr, "CheckFiles service called\n")
-	// fmt.Fprintf(os.Stderr, "ignore file ->%v\n", s.ignoreFile)
-	return s.checkFiles(filesChannel)
+	s.checkFiles(filesChannel, conflictConsumer)
 }
 
-func (s IgnoreService) CheckFilesFromStdin() []Conflict {
+func (s IgnoreService) CheckFilesFromStdin() {
 	fmt.Fprintf(os.Stderr, "CheckFilesFromStdin service called\n")
-	return s.checkFiles(nil)
+	s.checkFiles(nil, nil)
 }
 
-func (s IgnoreService) CheckCommit() []Conflict {
+func (s IgnoreService) CheckCommit() {
 	fmt.Fprintf(os.Stderr, "CheckCommit service called\n")
-	return s.checkFiles(nil)
+	s.checkFiles(nil, nil)
 }
 
-func (s IgnoreService) checkFiles(filesToCheck chan string) []Conflict {
+func (s IgnoreService) checkFiles(filesToCheck chan string, conflictConsumer ConflictConsumer) {
 	fmt.Fprintf(os.Stderr, "checkFiles service called\n")
-	var conflicts []Conflict
 	if !s.concurrency {
 		for file := range filesToCheck {
 			conflict := s.checkFile(file)
 			if conflict != nil {
-				conflicts = append(conflicts, *conflict)
+				conflictConsumer.ConflictsChannel() <- *conflict
 			}
 		}
+		close(conflictConsumer.ConflictsChannel())
+		for err := range conflictConsumer.ErrorChannel() {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		}
 	} else {
-		conflictsChannel := make(chan Conflict)
+		// conflictsChannel := make(chan Conflict)
 		var wg sync.WaitGroup
 		for file := range filesToCheck {
 			wg.Add(1)
-			go s.checkFileToChannel(file, conflictsChannel, &wg)
+			go s.checkFileToChannel(file, conflictConsumer.ConflictsChannel(), &wg)
 		}
 		// TODO start Conflict reader
 		wg.Wait()
 		fmt.Println("All go routines finished executing")
-		close(conflictsChannel)
+		close(conflictConsumer.ConflictsChannel())
 	}
-	return conflicts
 }
 
 func (s IgnoreService) checkFile(file string) *Conflict {
