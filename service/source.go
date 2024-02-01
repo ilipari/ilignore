@@ -1,8 +1,7 @@
 package service
 
 import (
-	"fmt"
-	"os"
+	"log/slog"
 	"os/exec"
 	"strings"
 )
@@ -34,7 +33,7 @@ type CommandFileSource struct {
 
 func NewFileSourceFromCommand(command string) <-chan string {
 	outputChannel := make(chan string)
-	// fmt.Fprintf(os.Stderr, "listCommand ->%v\n", s.listFilesCommand)
+	// log.Printf("listCommand ->%v\n", command)
 	producer := CommandFileSource{command, outputChannel}
 	go producer.start()
 	return outputChannel
@@ -43,15 +42,18 @@ func NewFileSourceFromCommand(command string) <-chan string {
 func (p CommandFileSource) start() {
 	files, error := getFilesToCommit(p.command)
 	if error == nil {
-		fmt.Fprintf(os.Stderr, "command returned %v files\n", len(files))
+		slog.Info("files command returned files", "count", len(files))
 		for _, file := range files {
 			p.outputChannel <- file
 		}
+	} else {
+		logErrorWithMsg("Error executing command", error)
 	}
 	close(p.outputChannel)
 }
 
 func getFilesToCommit(getFilesCommand string) ([]string, error) {
+	slog.Info("exec ", "command", getFilesCommand)
 	cmd := exec.Command("bash", "-c", getFilesCommand)
 	output, err := cmd.Output()
 	if err != nil {

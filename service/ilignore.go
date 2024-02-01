@@ -1,8 +1,7 @@
 package service
 
 import (
-	"fmt"
-	"os"
+	"log/slog"
 	"sync"
 )
 
@@ -25,14 +24,14 @@ type IgnoreService struct {
 
 // Channel to obtain list of files to be checked against ignore file
 func (s *IgnoreService) CheckFiles(filesChannel <-chan string) <-chan Conflict {
-	fmt.Fprintf(os.Stderr, "CheckFiles service called\n")
+	slog.Debug("CheckFiles service called")
 	conflictsChannel := make(chan Conflict, DEFAULT_CONFLICTS_BUFFER_SIZE)
 	go s.checkFiles(filesChannel, conflictsChannel)
 	return conflictsChannel
 }
 
 func (s *IgnoreService) checkFiles(filesToCheck <-chan string, conflictChannel chan Conflict) {
-	fmt.Fprintf(os.Stderr, "checkFiles service called\n")
+	slog.Debug("checkFiles service called")
 	if !s.concurrency {
 		for file := range filesToCheck {
 			conflict := s.checkFile(file)
@@ -50,13 +49,13 @@ func (s *IgnoreService) checkFiles(filesToCheck <-chan string, conflictChannel c
 		}
 		// TODO start Conflict reader
 		wg.Wait()
-		fmt.Println("All go routines finished executing")
+		slog.Debug("All go routines finished executing")
 		close(conflictChannel)
 	}
 }
 
 func (s IgnoreService) checkFile(file string) *Conflict {
-	fmt.Fprintf(os.Stderr, "checkFile service called\n")
+	slog.Debug("checkFile service called")
 	conflict, err := s.fileChecker.checkFile(file)
 	logError(err)
 	return conflict
@@ -72,10 +71,16 @@ func (s IgnoreService) checkFileToChannel(file string, ch chan Conflict, wg *syn
 
 func logError(err error) {
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		slog.Error("Error: %v\n", err)
+	}
+}
+
+func logErrorWithMsg(msg string, err error) {
+	if err != nil {
+		slog.Error("%v: %v\n", msg, err)
 	}
 }
 
 func (s IgnoreService) AddPatterns() {
-	fmt.Println("AddPatterns service called")
+	slog.Info("AddPatterns service called")
 }

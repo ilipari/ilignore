@@ -17,8 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package cmd
 
 import (
-	"fmt"
-	"os"
+	"log/slog"
 
 	"ilipari/ilignore/service"
 
@@ -39,14 +38,15 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Fprintf(os.Stderr, "check command called\n")
+		slog.Debug("check command called")
 		var s = service.NewService(viper.GetString(configKey(cmd, IGNORE_FILE_FLAG)))
 		filesCh := service.NewFileSourceFromCommand(viper.GetString(configKey(cmd, LIST_FILES_FLAG)))
+		// filesCh := service.NewStdinFileSource()
 		// filesCh := service.NewFixedFileSource([]string{"ciao.txt", "mondo.csv", ".vscode"})
 		conflictsChannel := s.CheckFiles(filesCh)
 		conflictsConsumerOutput := service.NewConsoleConflictConsumer(conflictsChannel, "")
 		for err := range conflictsConsumerOutput {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			slog.Error("error!", "error", err)
 		}
 	},
 }

@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package cmd
 
 import (
-	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -92,14 +92,14 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			// Config file not found; ignore error
-			fmt.Fprintln(os.Stderr, "Config file not found")
+			slog.Warn("Config file not found")
 		} else {
 			// Config file was found but another error was produced
-			fmt.Fprintln(os.Stderr, "Error Using config file:", err)
+			slog.Error("Error Using config file: ", err)
 			os.Exit(1)
 		}
 	} else {
 		// Config file found and successfully parsed
-		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+		slog.Info("Using config: ", "file", viper.ConfigFileUsed())
 	}
 }

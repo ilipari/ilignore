@@ -16,8 +16,19 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 package main
 
-import "ilipari/ilignore/cmd"
+import (
+	"ilipari/ilignore/cmd"
+	"log/slog"
+	"os"
+)
 
 func main() {
+	var programLevel = new(slog.LevelVar) // Info by default
+	programLevel.Set(slog.LevelWarn)
+	// h := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: programLevel})
+	// slog.SetDefault(slog.New(h))
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: programLevel}))
+	slog.SetDefault(logger)
+
 	cmd.Execute()
 }
