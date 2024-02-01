@@ -8,6 +8,7 @@ import (
 
 const GIT_COMMIT_FILES_COMMAND = "git diff --cached --name-only --diff-filter=ACMD"
 const IGNORE_FILE = ".ilignore"
+const DEFAULT_CONFLICTS_BUFFER_SIZE = 5
 
 func NewService(ignoreFile string) *IgnoreService {
 	fileChecker := NewFileChecker(ignoreFile, false)
@@ -23,45 +24,34 @@ type IgnoreService struct {
 }
 
 // Channel to obtain list of files to be checked against ignore file
-func (s IgnoreService) CheckFiles(filesChannel chan string, conflictConsumer ConflictConsumer) {
+func (s *IgnoreService) CheckFiles(filesChannel <-chan string) <-chan Conflict {
 	fmt.Fprintf(os.Stderr, "CheckFiles service called\n")
-	s.checkFiles(filesChannel, conflictConsumer)
+	conflictsChannel := make(chan Conflict, DEFAULT_CONFLICTS_BUFFER_SIZE)
+	go s.checkFiles(filesChannel, conflictsChannel)
+	return conflictsChannel
 }
 
-func (s IgnoreService) CheckFilesFromStdin() {
-	fmt.Fprintf(os.Stderr, "CheckFilesFromStdin service called\n")
-	s.checkFiles(nil, nil)
-}
-
-func (s IgnoreService) CheckCommit() {
-	fmt.Fprintf(os.Stderr, "CheckCommit service called\n")
-	s.checkFiles(nil, nil)
-}
-
-func (s IgnoreService) checkFiles(filesToCheck chan string, conflictConsumer ConflictConsumer) {
+func (s *IgnoreService) checkFiles(filesToCheck <-chan string, conflictChannel chan Conflict) {
 	fmt.Fprintf(os.Stderr, "checkFiles service called\n")
 	if !s.concurrency {
 		for file := range filesToCheck {
 			conflict := s.checkFile(file)
 			if conflict != nil {
-				conflictConsumer.ConflictsChannel() <- *conflict
+				conflictChannel <- *conflict
 			}
 		}
-		close(conflictConsumer.ConflictsChannel())
-		for err := range conflictConsumer.ErrorChannel() {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		}
+		close(conflictChannel)
 	} else {
 		// conflictsChannel := make(chan Conflict)
 		var wg sync.WaitGroup
 		for file := range filesToCheck {
 			wg.Add(1)
-			go s.checkFileToChannel(file, conflictConsumer.ConflictsChannel(), &wg)
+			go s.checkFileToChannel(file, conflictChannel, &wg)
 		}
 		// TODO start Conflict reader
 		wg.Wait()
 		fmt.Println("All go routines finished executing")
-		close(conflictConsumer.ConflictsChannel())
+		close(conflictChannel)
 	}
 }
 
