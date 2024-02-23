@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bufio"
 	"log/slog"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -66,4 +68,32 @@ func getFilesToCommit(getFilesCommand string) ([]string, error) {
 		files = strings.Split(outputStr, "\n")
 	}
 	return files, nil
+}
+
+// list Files Command
+type StdinFileSource struct {
+	outputChannel chan string
+}
+
+func NewStdinFileSource() <-chan string {
+	outputChannel := make(chan string)
+	producer := StdinFileSource{outputChannel}
+	go producer.start()
+	return outputChannel
+}
+
+func (p StdinFileSource) start() {
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.TrimSpace(line) == "" {
+			break
+		}
+		slog.Debug("Read " + line)
+		p.outputChannel <- line
+	}
+	if err := scanner.Err(); err != nil {
+		slog.Error("Error in reading from STDIN: %v\n", err)
+	}
+	close(p.outputChannel)
 }
