@@ -52,7 +52,18 @@ func Execute() {
 	}
 }
 
+var programLogLevel = new(slog.LevelVar)
+
+func initLogs(level slog.Level) {
+	programLogLevel.Set(level)
+	// h := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: programLevel})
+	// slog.SetDefault(slog.New(h))
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: programLogLevel}))
+	slog.SetDefault(logger)
+}
+
 func init() {
+	initLogs(slog.LevelWarn)
 	cobra.OnInitialize(initConfig)
 
 	// Here you will define your flags and configuration settings.
@@ -60,6 +71,8 @@ func init() {
 	// will be global for your application.
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ilignorerc.yaml)")
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "verbose output (same as --log info)")
+	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
@@ -89,7 +102,15 @@ func initConfig() {
 
 	viper.AutomaticEnv() // read in environment variables that match
 
-	if err := viper.ReadInConfig(); err != nil {
+	err := viper.ReadInConfig()
+
+	// set log level
+	verbose := viper.GetBool("verbose")
+	if verbose {
+		programLogLevel.Set(slog.LevelInfo)
+	}
+
+	if err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			// Config file not found; ignore error
 			slog.Warn("Config file not found")
@@ -102,4 +123,5 @@ func initConfig() {
 		// Config file found and successfully parsed
 		slog.Info("Using config: ", "file", viper.ConfigFileUsed())
 	}
+
 }
