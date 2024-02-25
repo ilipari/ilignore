@@ -2,6 +2,7 @@ package service
 
 import (
 	"bufio"
+	"io"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -42,32 +43,45 @@ func NewFileSourceFromCommand(command string) <-chan string {
 }
 
 func (p CommandFileSource) start() {
-	files, error := getFilesToCommit(p.command)
-	if error == nil {
-		slog.Info("files command returned files", "count", len(files))
-		for _, file := range files {
-			p.outputChannel <- file
-		}
+	slog.Info("exec ", "command", p.command)
+	cmd := exec.Command("bash", "-c", p.command)
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		slog.Error("Error starting command", "err", err.Error(), "command", p.command)
 	} else {
-		logErrorWithMsg("Error executing command", error)
+		if err = cmd.Start(); err != nil {
+			slog.Error(err.Error())
+		} else {
+			if err = readLines(stdout, p.outputChannel, true); err != nil {
+				slog.Error("Error reading from command Stdout", "err", err.Error(), "command", p.command)
+			}
+			err = cmd.Wait()
+			if err != nil {
+				slog.Error("Error Waiting for command to exit", "err", err.Error(), "command", p.command)
+			}
+		}
+
 	}
 	close(p.outputChannel)
 }
 
-func getFilesToCommit(getFilesCommand string) ([]string, error) {
-	slog.Info("exec ", "command", getFilesCommand)
-	cmd := exec.Command("bash", "-c", getFilesCommand)
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, err
+func readLines(in io.Reader, out chan string, continueOnEmpty bool) error {
+	scanner := bufio.NewScanner(in)
+	for scanner.Scan() {
+		line := scanner.Text()
+		slog.Debug("Read " + line)
+		line = strings.TrimSpace(line)
+		if line == "" {
+			if continueOnEmpty {
+				continue
+			} else {
+				break
+			}
+		}
+		out <- line
 	}
-	// Converti l'output in una stringa e rimuovi l'ultimo carattere di new line
-	outputStr := strings.TrimSuffix(string(output), "\n")
-	var files []string
-	if len(outputStr) > 0 {
-		files = strings.Split(outputStr, "\n")
-	}
-	return files, nil
+	return scanner.Err()
 }
 
 // list Files Command
@@ -83,17 +97,8 @@ func NewStdinFileSource() <-chan string {
 }
 
 func (p StdinFileSource) start() {
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.TrimSpace(line) == "" {
-			break
-		}
-		slog.Debug("Read " + line)
-		p.outputChannel <- line
-	}
-	if err := scanner.Err(); err != nil {
-		slog.Error("Error in reading from STDIN: %v\n", err)
+	if err := readLines(os.Stdin, p.outputChannel, false); err != nil {
+		slog.Error("Error in reading from STDIN", "err", err.Error())
 	}
 	close(p.outputChannel)
 }
