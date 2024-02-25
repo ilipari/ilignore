@@ -9,35 +9,55 @@ import (
 	"strings"
 )
 
-type FixedFileSource struct {
-	filesToCheck  []string
+type StdinFileSource struct {
 	outputChannel chan string
 }
 
-func NewFixedFileSource(filesToCheck []string) <-chan string {
+func NewStdinFileSource() <-chan string {
 	outputChannel := make(chan string)
-	producer := FixedFileSource{filesToCheck, outputChannel}
+	producer := StdinFileSource{outputChannel}
 	go producer.start()
 	return outputChannel
 }
 
-func (p FixedFileSource) start() {
-	for _, f := range p.filesToCheck {
-		p.outputChannel <- f
+func (p StdinFileSource) start() {
+	if err := readLines(os.Stdin, p.outputChannel, false); err != nil {
+		slog.Error("Error in reading from STDIN", "err", err.Error())
 	}
 	close(p.outputChannel)
 }
 
-// list Files Command
-type CommandFileSource struct {
-	command       string
-	outputChannel chan string
+func readLines(in io.Reader, out chan string, continueOnEmpty bool) error {
+	scanner := bufio.NewScanner(in)
+	count := 0
+	for scanner.Scan() {
+		line := scanner.Text()
+		slog.Debug("Read " + line)
+		line = strings.TrimSpace(line)
+		if line == "" {
+			if continueOnEmpty {
+				continue
+			} else {
+				break
+			}
+		}
+		out <- line
+		count++
+	}
+	slog.Debug("read lines", "count", count)
+	return scanner.Err()
 }
 
-func NewFileSourceFromCommand(command string) <-chan string {
+// list Files Command
+type CommandFileSource struct {
+	command string
+	StdinFileSource
+}
+
+func NewCommandFileSource(command string) <-chan string {
 	outputChannel := make(chan string)
 	// log.Printf("listCommand ->%v\n", command)
-	producer := CommandFileSource{command, outputChannel}
+	producer := CommandFileSource{command, StdinFileSource{outputChannel}}
 	go producer.start()
 	return outputChannel
 }
@@ -66,39 +86,22 @@ func (p CommandFileSource) start() {
 	close(p.outputChannel)
 }
 
-func readLines(in io.Reader, out chan string, continueOnEmpty bool) error {
-	scanner := bufio.NewScanner(in)
-	for scanner.Scan() {
-		line := scanner.Text()
-		slog.Debug("Read " + line)
-		line = strings.TrimSpace(line)
-		if line == "" {
-			if continueOnEmpty {
-				continue
-			} else {
-				break
-			}
-		}
-		out <- line
-	}
-	return scanner.Err()
-}
-
-// list Files Command
-type StdinFileSource struct {
+// for debug/test purpose
+type FixedFileSource struct {
+	filesToCheck  []string
 	outputChannel chan string
 }
 
-func NewStdinFileSource() <-chan string {
+func NewFixedFileSource(filesToCheck []string) <-chan string {
 	outputChannel := make(chan string)
-	producer := StdinFileSource{outputChannel}
+	producer := FixedFileSource{filesToCheck, outputChannel}
 	go producer.start()
 	return outputChannel
 }
 
-func (p StdinFileSource) start() {
-	if err := readLines(os.Stdin, p.outputChannel, false); err != nil {
-		slog.Error("Error in reading from STDIN", "err", err.Error())
+func (p FixedFileSource) start() {
+	for _, f := range p.filesToCheck {
+		p.outputChannel <- f
 	}
 	close(p.outputChannel)
 }
