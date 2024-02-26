@@ -41,6 +41,7 @@ to quickly create a Cobra application.`,
 		slog.Debug("check command called")
 		var s = service.NewService(viper.GetString(configKey(cmd, IGNORE_FILE_FLAG)))
 		filesCh := service.NewCommandFileSource(viper.GetString(configKey(cmd, LIST_FILES_FLAG)))
+		// filesCh := service.NewGitIndexFileSource()
 		// filesCh := service.NewStdinFileSource()
 		// filesCh := service.NewFixedFileSource([]string{"ciao.txt", "mondo.csv", ".vscode"})
 		conflictsChannel := s.CheckFiles(filesCh)

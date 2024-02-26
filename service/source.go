@@ -62,6 +62,14 @@ func NewCommandFileSource(command string) <-chan string {
 	return outputChannel
 }
 
+func NewGitIndexFileSource() <-chan string {
+	outputChannel := make(chan string)
+	command := "git diff --cached --name-only --diff-filter=ACMD"
+	producer := CommandFileSource{command, StdinFileSource{outputChannel}}
+	go producer.start()
+	return outputChannel
+}
+
 func (p CommandFileSource) start() {
 	slog.Info("exec ", "command", p.command)
 	cmd := exec.Command("bash", "-c", p.command)
