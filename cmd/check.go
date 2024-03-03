@@ -39,7 +39,7 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		slog.Debug("check command called")
-		var s = service.NewService(viper.GetString(configKey(cmd, IGNORE_FILE_FLAG)))
+		var s = service.NewService(viper.GetStringSlice(configKey(cmd, IGNORE_FILE_FLAG)), false)
 		filesCh := service.NewCommandFileSource(viper.GetString(configKey(cmd, LIST_FILES_FLAG)))
 		// filesCh := service.NewGitIndexFileSource()
 		// filesCh := service.NewStdinFileSource()
@@ -70,7 +70,7 @@ func init() {
 	checkCmd.Flags().StringP(LIST_FILES_FLAG, "f", service.GIT_COMMIT_FILES_COMMAND, "command to obtain list of files to check")
 	viper.BindPFlag(configKey(checkCmd, LIST_FILES_FLAG), checkCmd.Flags().Lookup(LIST_FILES_FLAG))
 
-	checkCmd.Flags().StringP(IGNORE_FILE_FLAG, "i", service.IGNORE_FILE, "Ignore file")
+	checkCmd.Flags().StringSliceP(IGNORE_FILE_FLAG, "i", []string{service.IGNORE_FILE}, "Ignore file")
 	viper.BindPFlag(configKey(checkCmd, IGNORE_FILE_FLAG), checkCmd.Flags().Lookup(IGNORE_FILE_FLAG))
 
 }

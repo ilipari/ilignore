@@ -1,3 +1,5 @@
 check:
   files: git diff --cached --name-only --diff-filter=ACMD
-  ignore: .ilignore
+  ignore: 
+    - .ilignore
+    - .gitignore
