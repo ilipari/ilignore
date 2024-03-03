@@ -9,16 +9,23 @@ const GIT_COMMIT_FILES_COMMAND = "git diff --cached --name-only --diff-filter=AC
 const IGNORE_FILE = ".ilignore"
 const DEFAULT_CONFLICTS_BUFFER_SIZE = 5
 
-func NewService(ignoreFile string) *IgnoreService {
-	fileChecker := NewFileChecker(ignoreFile, false)
-	return &IgnoreService{
-		fileChecker: fileChecker,
-		concurrency: false,
+func NewService(ignoreFiles []string, concurrency bool) *IgnoreService {
+	if len(ignoreFiles) > 0 {
+		fileCheckers := []FileChecker{}
+		for _, ignoreFile := range ignoreFiles {
+			fileChecker := NewFileChecker(ignoreFile, false)
+			fileCheckers = append(fileCheckers, fileChecker)
+		}
+		return &IgnoreService{
+			checkers:    fileCheckers,
+			concurrency: concurrency,
+		}
 	}
+	panic("At least one ignore file is required")
 }
 
 type IgnoreService struct {
-	fileChecker FileChecker
+	checkers    []FileChecker
 	concurrency bool
 }
 
@@ -34,9 +41,11 @@ func (s *IgnoreService) checkFiles(filesToCheck <-chan string, conflictChannel c
 	slog.Debug("checkFiles service called")
 	if !s.concurrency {
 		for file := range filesToCheck {
-			conflict := s.checkFile(file)
-			if conflict != nil {
-				conflictChannel <- *conflict
+			for _, fileChecker := range s.checkers {
+				conflict := checkFile(file, fileChecker)
+				if conflict != nil {
+					conflictChannel <- *conflict
+				}
 			}
 		}
 		close(conflictChannel)
@@ -54,15 +63,15 @@ func (s *IgnoreService) checkFiles(filesToCheck <-chan string, conflictChannel c
 	}
 }
 
-func (s IgnoreService) checkFile(file string) *Conflict {
+func checkFile(file string, fileChecker FileChecker) *Conflict {
 	slog.Debug("checkFile service called")
-	conflict, err := s.fileChecker.checkFile(file)
+	conflict, err := fileChecker.checkFile(file)
 	logError(err)
 	return conflict
 }
 
 func (s IgnoreService) checkFileToChannel(file string, ch chan Conflict, wg *sync.WaitGroup) {
-	conflict := s.checkFile(file)
+	conflict := checkFile(file, s.checkers[0])
 	if conflict != nil {
 		ch <- *conflict
 	}
