@@ -72,26 +72,29 @@ func NewGitIndexFileSource() <-chan string {
 
 func (p CommandFileSource) start() {
 	slog.Info("exec ", "command", p.command)
+	defer close(p.outputChannel)
 	cmd := exec.Command("bash", "-c", p.command)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		slog.Error("Error starting command", "err", err.Error(), "command", p.command)
-	} else {
-		if err = cmd.Start(); err != nil {
-			slog.Error(err.Error())
-		} else {
-			if err = readLines(stdout, p.outputChannel, true); err != nil {
-				slog.Error("Error reading from command Stdout", "err", err.Error(), "command", p.command)
-			}
-			err = cmd.Wait()
-			if err != nil {
-				slog.Error("Error Waiting for command to exit", "err", err.Error(), "command", p.command)
-			}
-		}
-
+		slog.Error("Error getting command's standard output", "err", err.Error(), "command", p.command)
+		return
 	}
-	close(p.outputChannel)
+	if err = cmd.Start(); err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	if err = readLines(stdout, p.outputChannel, true); err != nil {
+		slog.Error("Error reading from command Stdout", "err", err.Error(), "command", p.command)
+	}
+	err = cmd.Wait()
+	if err != nil {
+		if ee, ok := err.(*exec.ExitError); ok {
+			slog.Error("Error getting files", "err", err.Error(), "command", p.command, "exitCode", ee.ProcessState.ExitCode())
+		} else {
+			slog.Error("I/O Problems getting files", "err", err.Error(), "command", p.command)
+		}
+	}
 }
 
 // for debug/test purpose
