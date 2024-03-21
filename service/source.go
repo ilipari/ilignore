@@ -2,6 +2,7 @@ package service
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -9,39 +10,39 @@ import (
 	"strings"
 )
 
-type StdinFileSource struct {
-	outputChannel chan string
+type FileSource interface {
+	start()
 }
 
-func NewStdinFileSource() <-chan string {
-	outputChannel := make(chan string)
-	producer := StdinFileSource{outputChannel}
-	go producer.start()
-	return outputChannel
+type ReaderFileSource struct {
+	reader          io.Reader
+	outputChannel   chan string
+	continueOnEmpty bool
 }
 
-func (p StdinFileSource) start() {
-	if err := readLines(os.Stdin, p.outputChannel, false); err != nil {
-		slog.Error("Error in reading from STDIN", "err", err.Error())
+// start implements FileSource.
+func (p *ReaderFileSource) start() {
+	defer close(p.outputChannel)
+	if err := p.readLinesFromReader(); err != nil {
+		slog.Error("Error reading lines", "err", err.Error(), "reader", p.reader)
 	}
-	close(p.outputChannel)
 }
 
-func readLines(in io.Reader, out chan string, continueOnEmpty bool) error {
-	scanner := bufio.NewScanner(in)
+func (p *ReaderFileSource) readLinesFromReader() error {
+	scanner := bufio.NewScanner(p.reader)
 	count := 0
 	for scanner.Scan() {
 		line := scanner.Text()
 		slog.Debug("Read " + line)
 		line = strings.TrimSpace(line)
 		if line == "" {
-			if continueOnEmpty {
+			if p.continueOnEmpty {
 				continue
 			} else {
 				break
 			}
 		}
-		out <- line
+		p.outputChannel <- line
 		count++
 	}
 	slog.Debug("read lines", "count", count)
@@ -51,40 +52,18 @@ func readLines(in io.Reader, out chan string, continueOnEmpty bool) error {
 // list Files Command
 type CommandFileSource struct {
 	command string
-	StdinFileSource
+	ReaderFileSource
 }
 
-func NewCommandFileSource(command string) <-chan string {
-	outputChannel := make(chan string)
-	// log.Printf("listCommand ->%v\n", command)
-	producer := CommandFileSource{command, StdinFileSource{outputChannel}}
-	go producer.start()
-	return outputChannel
-}
-
-func NewGitIndexFileSource() <-chan string {
-	outputChannel := make(chan string)
-	command := "git diff --cached --name-only --diff-filter=ACMD"
-	producer := CommandFileSource{command, StdinFileSource{outputChannel}}
-	go producer.start()
-	return outputChannel
-}
-
-func (p CommandFileSource) start() {
+func (p *CommandFileSource) start() {
 	slog.Info("exec ", "command", p.command)
 	defer close(p.outputChannel)
-	cmd := exec.Command("bash", "-c", p.command)
-
-	stdout, err := cmd.StdoutPipe()
+	cmd, err := p.startCommand()
 	if err != nil {
-		slog.Error("Error getting command's standard output", "err", err.Error(), "command", p.command)
+		slog.Error("Error starting command", "err", err.Error(), "command", p.command)
 		return
 	}
-	if err = cmd.Start(); err != nil {
-		slog.Error(err.Error())
-		return
-	}
-	if err = readLines(stdout, p.outputChannel, true); err != nil {
+	if err = p.readLinesFromReader(); err != nil {
 		slog.Error("Error reading from command Stdout", "err", err.Error(), "command", p.command)
 	}
 	err = cmd.Wait()
@@ -97,22 +76,46 @@ func (p CommandFileSource) start() {
 	}
 }
 
-// for debug/test purpose
-type FixedFileSource struct {
-	filesToCheck  []string
-	outputChannel chan string
+func (p *CommandFileSource) startCommand() (*exec.Cmd, error) {
+	fields := strings.Fields(p.command)
+	cmd := exec.Command(fields[0], fields[1:]...)
+	stdout, err := cmd.StdoutPipe()
+	p.reader = stdout // set reader to read command output
+	if err == nil {
+		err = cmd.Start()
+	}
+	return cmd, err
 }
 
-func NewFixedFileSource(filesToCheck []string) <-chan string {
+func NewFileSource(filesToCheck []string, command string, continueOnEmpty bool) <-chan string {
 	outputChannel := make(chan string)
-	producer := FixedFileSource{filesToCheck, outputChannel}
+
+	var producer FileSource
+	if len(filesToCheck) > 0 {
+		slog.Info("Check Fixed files")
+		reader := strings.NewReader(strings.Join(filesToCheck, "\n"))
+		producer = &ReaderFileSource{reader, outputChannel, continueOnEmpty}
+	} else if command != "" {
+		slog.Info("Check files from command")
+		producer = &CommandFileSource{command, ReaderFileSource{nil, outputChannel, continueOnEmpty}}
+	} else {
+		slog.Info("Check files from Stdin")
+		producer = &ReaderFileSource{os.Stdin, outputChannel, false}
+	}
 	go producer.start()
 	return outputChannel
 }
 
-func (p FixedFileSource) start() {
-	for _, f := range p.filesToCheck {
-		p.outputChannel <- f
+const GIT_DIFF_COMMAND_TEMPLATE = "git diff%s --name-only --diff-filter=%s"
+
+func NewGitDiffFileSource(cached bool, diffFilter string) <-chan string {
+	cachedFlag := ""
+	if cached {
+		cachedFlag = " --cached"
 	}
-	close(p.outputChannel)
+	if diffFilter == "" {
+		diffFilter = "ACMD"
+	}
+	command := fmt.Sprintf(GIT_DIFF_COMMAND_TEMPLATE, cachedFlag, diffFilter)
+	return NewFileSource(nil, command, false)
 }
