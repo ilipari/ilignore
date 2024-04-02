@@ -31,16 +31,8 @@ var rootCmd = &cobra.Command{
 	Use:   "ilignore",
 	Short: "CLI Tools to work with .gitignore files",
 	Long: `CLI Tools to help prevent further commits in files that are already tracked in a git repo.
-Ignored files specified in .gitignore file format.
-
-A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+Ignored files specified in .gitignore file format.`,
+	Version: "0.1",
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -74,6 +66,9 @@ func init() {
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "verbose output (same as --log info)")
 	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 
+	rootCmd.PersistentFlags().String("log", "", "log level: one of Debug, Info, Warn, Error. Case insensitive (default is WARN)")
+	viper.BindPFlag("log", rootCmd.PersistentFlags().Lookup("log"))
+
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
@@ -103,13 +98,7 @@ func initConfig() {
 	viper.AutomaticEnv() // read in environment variables that match
 
 	err := viper.ReadInConfig()
-
-	// set log level
-	verbose := viper.GetBool("verbose")
-	if verbose {
-		programLogLevel.Set(slog.LevelInfo)
-	}
-
+	setProgramLogLevelFromViper()
 	if err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			// Config file not found; ignore error
@@ -124,4 +113,21 @@ func initConfig() {
 		slog.Info("Using config: ", "file", viper.ConfigFileUsed())
 	}
 
+}
+
+func setProgramLogLevelFromViper() {
+	verbose := viper.GetBool("verbose")
+	if verbose {
+		programLogLevel.Set(slog.LevelInfo)
+	}
+	logLevel, logErr := parseLogLevel(viper.GetString("log"))
+	if logErr == nil {
+		programLogLevel.Set(logLevel)
+	}
+}
+
+func parseLogLevel(s string) (slog.Level, error) {
+	var level slog.Level
+	var err = level.UnmarshalText([]byte(s))
+	return level, err
 }

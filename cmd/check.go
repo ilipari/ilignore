@@ -30,13 +30,7 @@ var checkCmd = &cobra.Command{
 	Use:   "check",
 	Short: "Checks which files conflicts with an ignore file",
 	Long: `Analyzes a list of files looking for conflicts with an ignore file in .gitignore format. 
-The list of files to check can be obtained through the execution of a shell command or via stdin.
-A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+The list of files to check can be obtained from args, through the execution of a shell command or via stdin.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		slog.Debug("check command called")
 		var s = service.NewService(viper.GetStringSlice(configKey(cmd, IGNORE_FILE_FLAG)), false)
@@ -46,14 +40,18 @@ to quickly create a Cobra application.`,
 		// filesCh := service.NewStdinFileSource()
 		// filesCh := service.NewFixedFileSource([]string{"ciao.txt", "mondo.csv", ".vscode"})
 		conflictsChannel := s.CheckFiles(filesCh)
-		conflictsConsumerOutput := service.NewConsoleConflictConsumer(conflictsChannel, "")
+		fields := []string{}
+		if viper.GetBool(configKey(cmd, NAME_ONLY_FLAG)) {
+			fields = []string{"File"}
+		}
+		conflictsConsumerOutput := service.NewConsoleConflictConsumer(conflictsChannel, "", fields)
 		for err := range conflictsConsumerOutput {
 			slog.Error("error!", "error", err)
 		}
 	},
 }
 
-const LIST_FILES_FLAG, IGNORE_FILE_FLAG = "files", "ignore"
+const LIST_FILES_FLAG, IGNORE_FILE_FLAG, NAME_ONLY_FLAG = "files", "ignore", "name-only"
 
 func init() {
 	rootCmd.AddCommand(checkCmd)
@@ -73,6 +71,9 @@ func init() {
 
 	checkCmd.Flags().StringSliceP(IGNORE_FILE_FLAG, "i", []string{service.IGNORE_FILE}, "Ignore file")
 	viper.BindPFlag(configKey(checkCmd, IGNORE_FILE_FLAG), checkCmd.Flags().Lookup(IGNORE_FILE_FLAG))
+
+	checkCmd.Flags().BoolP(NAME_ONLY_FLAG, "", false, "outputs only name of conflicting files without further informations")
+	viper.BindPFlag(configKey(checkCmd, NAME_ONLY_FLAG), checkCmd.Flags().Lookup(NAME_ONLY_FLAG))
 
 }
 

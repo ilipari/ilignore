@@ -10,6 +10,7 @@ const DEFAULT_CONFLICTS_BUFFER_SIZE = 5
 func NewService(ignoreFiles []string, concurrency bool) *IgnoreService {
 	if len(ignoreFiles) > 0 {
 		fileCheckers := []FileChecker{}
+		slog.Info("creating ignore service", "files", ignoreFiles)
 		for _, ignoreFile := range ignoreFiles {
 			fileChecker := NewFileChecker(ignoreFile, false)
 			fileCheckers = append(fileCheckers, fileChecker)
