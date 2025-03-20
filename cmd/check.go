@@ -33,7 +33,7 @@ var checkCmd = &cobra.Command{
 The list of files to check can be obtained from args, through the execution of a shell command or via stdin.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		slog.Debug("check command called")
-		var s = service.NewService(viper.GetStringSlice(configKey(cmd, IGNORE_FILE_FLAG)), false)
+		var s = service.NewService(viper.GetStringSlice(configKey(cmd, IGNORE_FILE_FLAG)), viper.GetInt(configKey(cmd, CONCURRENCY_FILE_FLAG)))
 		filesCh := service.NewFileSource(args, viper.GetString(configKey(cmd, LIST_FILES_FLAG)), true)
 		// filesCh := service.NewCommandFileSource(viper.GetString(configKey(cmd, LIST_FILES_FLAG)), true)
 		// filesCh := service.NewGitDiffFileSource(true, "")
@@ -51,7 +51,7 @@ The list of files to check can be obtained from args, through the execution of a
 	},
 }
 
-const LIST_FILES_FLAG, IGNORE_FILE_FLAG, NAME_ONLY_FLAG = "files", "ignore", "name-only"
+const LIST_FILES_FLAG, IGNORE_FILE_FLAG, NAME_ONLY_FLAG, CONCURRENCY_FILE_FLAG = "files", "ignore", "name-only", "concurrency"
 
 func init() {
 	rootCmd.AddCommand(checkCmd)
@@ -75,6 +75,8 @@ func init() {
 	checkCmd.Flags().BoolP(NAME_ONLY_FLAG, "", false, "outputs only name of conflicting files without further informations")
 	viper.BindPFlag(configKey(checkCmd, NAME_ONLY_FLAG), checkCmd.Flags().Lookup(NAME_ONLY_FLAG))
 
+	checkCmd.Flags().Int16P(CONCURRENCY_FILE_FLAG, "c", 1, "concurrency level")
+	viper.BindPFlag(configKey(checkCmd, CONCURRENCY_FILE_FLAG), checkCmd.Flags().Lookup(CONCURRENCY_FILE_FLAG))
 }
 
 func configKey(cmd *cobra.Command, flag string) string {

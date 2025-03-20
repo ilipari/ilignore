@@ -77,7 +77,7 @@ func (s *DenormalFileChecker) checkFile(file string) (*Conflict, error) {
 	var conflict *Conflict
 	if match != nil {
 		if match.Ignore() {
-			conflict = NewConflict()
+			conflict = newConflict()
 			conflict.File = file
 			conflict.IgnoreFile = s.ignoreFile
 			conflict.Line = match.Position().Line

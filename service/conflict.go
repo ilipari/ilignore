@@ -1,7 +1,7 @@
 package service
 
 type Conflict struct {
-	// offending file command to obtain list of files to be checked against ignore file
+	// offending file
 	File string
 	// matching pattern in .gitignore file
 	Pattern string
@@ -11,6 +11,6 @@ type Conflict struct {
 	Line int
 }
 
-func NewConflict() *Conflict {
+func newConflict() *Conflict {
 	return &Conflict{"", "", "", -1}
 }
