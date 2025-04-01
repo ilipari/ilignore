@@ -2,6 +2,7 @@ package service
 
 import (
 	"log/slog"
+	"runtime"
 	"sync"
 )
 
@@ -11,6 +12,7 @@ const DEFAULT_CONFLICTS_BUFFER_SIZE = 5
 func NewService(ignoreFiles []string, concurrency int) *IgnoreService {
 	if len(ignoreFiles) > 0 {
 		fileCheckers := []FileChecker{}
+		concurrency = normalize(concurrency)
 		slog.Info("creating ignore service", "files", ignoreFiles, "concurrency", concurrency)
 		for _, ignoreFile := range ignoreFiles {
 			fileChecker := NewFileChecker(ignoreFile, false)
@@ -22,6 +24,19 @@ func NewService(ignoreFiles []string, concurrency int) *IgnoreService {
 		}
 	}
 	panic("At least one ignore file is required")
+}
+
+func normalize(concurrency int) int {
+	maxConcurrency := runtime.NumCPU()
+	var retConcurrency = concurrency
+	if concurrency < 0 || concurrency > maxConcurrency {
+		slog.Debug("setting concurrency value to max", "concurrency", concurrency, "maxConcurrency", maxConcurrency)
+		retConcurrency = maxConcurrency
+	} else if concurrency == 0 {
+		slog.Debug("concurrency disabled setting to 1")
+		retConcurrency = 1
+	}
+	return retConcurrency
 }
 
 type IgnoreService struct {

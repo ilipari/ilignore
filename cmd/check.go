@@ -17,7 +17,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package cmd
 
 import (
+	"fmt"
 	"log/slog"
+	"runtime"
 
 	"ilipari/ilignore/service"
 
@@ -75,7 +77,9 @@ func init() {
 	checkCmd.Flags().BoolP(NAME_ONLY_FLAG, "", false, "outputs only name of conflicting files without further informations")
 	viper.BindPFlag(configKey(checkCmd, NAME_ONLY_FLAG), checkCmd.Flags().Lookup(NAME_ONLY_FLAG))
 
-	checkCmd.Flags().Int16P(CONCURRENCY_FILE_FLAG, "c", 1, "concurrency level")
+	maxConcurrency := runtime.NumCPU()
+	helpText := fmt.Sprintf("concurrency level [number of worker goroutines: 0=no concurrency, less than 0=max value for this machine (%d)]", maxConcurrency)
+	checkCmd.Flags().IntP(CONCURRENCY_FILE_FLAG, "c", maxConcurrency, helpText)
 	viper.BindPFlag(configKey(checkCmd, CONCURRENCY_FILE_FLAG), checkCmd.Flags().Lookup(CONCURRENCY_FILE_FLAG))
 }
 
