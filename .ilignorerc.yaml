@@ -1,4 +1,4 @@
 check:
-  files: git diff --cached --name-only --diff-filter=ACMD
+  input: git diff --cached --name-only --diff-filter=ACMD
   ignore: 
     - .ilignore

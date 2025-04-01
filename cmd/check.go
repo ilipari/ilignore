@@ -53,7 +53,7 @@ The list of files to check can be obtained from args, through the execution of a
 	},
 }
 
-const LIST_FILES_FLAG, IGNORE_FILE_FLAG, NAME_ONLY_FLAG, CONCURRENCY_FILE_FLAG = "files", "ignore", "name-only", "concurrency"
+const LIST_FILES_FLAG, IGNORE_FILE_FLAG, NAME_ONLY_FLAG, CONCURRENCY_FILE_FLAG = "input", "ignore", "name-only", "concurrency"
 
 func init() {
 	rootCmd.AddCommand(checkCmd)
@@ -68,18 +68,18 @@ func init() {
 	// is called directly, e.g.:
 	// checkCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
-	checkCmd.Flags().StringP(LIST_FILES_FLAG, "f", "", "command to obtain list of files to check")
+	checkCmd.Flags().StringP(LIST_FILES_FLAG, "i", "", "command to obtain list of files to check")
 	viper.BindPFlag(configKey(checkCmd, LIST_FILES_FLAG), checkCmd.Flags().Lookup(LIST_FILES_FLAG))
 
-	checkCmd.Flags().StringSliceP(IGNORE_FILE_FLAG, "i", []string{service.IGNORE_FILE}, "Ignore file")
+	checkCmd.Flags().StringSliceP(IGNORE_FILE_FLAG, "g", []string{service.IGNORE_FILE}, "Ignore file")
 	viper.BindPFlag(configKey(checkCmd, IGNORE_FILE_FLAG), checkCmd.Flags().Lookup(IGNORE_FILE_FLAG))
 
 	checkCmd.Flags().BoolP(NAME_ONLY_FLAG, "", false, "outputs only name of conflicting files without further informations")
 	viper.BindPFlag(configKey(checkCmd, NAME_ONLY_FLAG), checkCmd.Flags().Lookup(NAME_ONLY_FLAG))
 
 	maxConcurrency := runtime.NumCPU()
-	helpText := fmt.Sprintf("concurrency level [number of worker goroutines: 0=no concurrency, less than 0=max value for this machine (%d)]", maxConcurrency)
-	checkCmd.Flags().IntP(CONCURRENCY_FILE_FLAG, "c", maxConcurrency, helpText)
+	checkCmd.Flags().IntP(CONCURRENCY_FILE_FLAG, "c", maxConcurrency,
+		fmt.Sprintf("concurrency level [number of worker goroutines: 0=no concurrency, less than 0=max value for this machine (%d)]", maxConcurrency))
 	viper.BindPFlag(configKey(checkCmd, CONCURRENCY_FILE_FLAG), checkCmd.Flags().Lookup(CONCURRENCY_FILE_FLAG))
 }
 
