@@ -41,14 +41,14 @@ The list of files to check can be obtained from args, through the execution of a
 		// filesCh := service.NewGitDiffFileSource(true, "")
 		// filesCh := service.NewStdinFileSource()
 		// filesCh := service.NewFixedFileSource([]string{"ciao.txt", "mondo.csv", ".vscode"})
-		conflictsChannel := s.CheckFiles(filesCh)
+		errorsCh := s.CheckFiles(filesCh)
 		fields := []string{}
 		if viper.GetBool(configKey(cmd, NAME_ONLY_FLAG)) {
 			fields = []string{"File"}
 		}
-		conflictsConsumerOutput := service.NewConsoleConflictConsumer(conflictsChannel, "", fields)
+		conflictsConsumerOutput := service.NewConsoleConflictConsumer(errorsCh, "", fields)
 		for err := range conflictsConsumerOutput {
-			slog.Error("error!", "error", err)
+			slog.Error("Error processing conflict", "error", err)
 		}
 	},
 }
